@@ -25,6 +25,7 @@ class DockerCallTest(unittest.TestCase):
     """
 
     DOCKER_IMAGE = "pi_beat"
+    TEST_PLAN = "test_plan.xml"
 
     def setUp(self):
         """Common initialization operations
@@ -35,12 +36,19 @@ class DockerCallTest(unittest.TestCase):
         self.log.debug("Setting up the test")
 
         self.log.debug("Testing image: {}".format(self.DOCKER_IMAGE))
+        self.log.debug("Test plan in : {}".format(self.TEST_PLAN))
+
 
         rel_path = os.path.dirname(__file__)
         test_folder = os.path.abspath(os.getcwd() + "/" + rel_path)
         ## Read the test plan
-        plan_file = test_folder + "/test_plan.xml"
+        plan_file = self.TEST_PLAN
         self.log.debug("test plan file: {}".format(plan_file))
+        rel_path = os.path.dirname(self.TEST_PLAN)
+        self.log.debug("rel_path: {}".format(rel_path))
+
+        test_folder = os.path.abspath(os.getcwd() + "/" + rel_path)
+        self.log.debug("test folder: {}".format(test_folder))
 
         plan_xml = xml.dom.minidom.parse(plan_file)
         all_test = plan_xml.getElementsByTagName("test")
@@ -130,10 +138,12 @@ class DockerCallTest(unittest.TestCase):
 
 if __name__ == '__main__':
     print("test_docker_call -- testing image: {}".format(os.environ.get('DOCKER_IMAGE')))
+    print("test_docker_call -- testing plan: {}".format(os.environ.get('TEST_PLAN')))
 
     logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 
     DockerCallTest.DOCKER_IMAGE = os.environ.get('DOCKER_IMAGE', DockerCallTest.DOCKER_IMAGE)
+    DockerCallTest.TEST_PLAN = os.environ.get('TEST_PLAN', DockerCallTest.TEST_PLAN)
     # TODO using https://stackoverflow.com/questions/11380413/python-unittest-passing-arguments
     # but it is mentioned as not preferrable.
     unittest.main()
