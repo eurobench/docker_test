@@ -17,15 +17,78 @@ import tempfile
 import logging
 import sys
 import xml.dom.minidom
-
+# for dind management
+# import re
+# import docker
+# import socket
 # Check https://stackoverflow.com/questions/32899/how-do-you-generate-dynamic-parameterized-unit-tests-in-python
+
+# for dind management,
+# see https://gist.github.com/dpfoose/f96d4e4b76c2e01265619d545b77987a
+
+
+# def in_docker():
+#     """
+#     Check if running in Docker
+#     :return: Whether or not this is running in Docker container
+#     """
+#     try:
+#         with open('/proc/1/cgroup', 'rt') as cgroup_file:
+#             return 'docker' in cgroup_file.read()
+#     except FileNotFoundError as e:
+#         return False
+
+
+# def translate_path(path):
+#     """
+#     :param path: A string representing a path within the container
+#     :return: A string representing a path on the host (or the original path if the path is not in a bound volume)
+#     """
+#     binds = get_binds()
+#     if path in binds.keys():
+#         return binds[path]
+#     exps = ['(%s)/(.*)' % key for key in binds.keys()]
+#     print('path: %s' % path)
+#     for exp in exps:
+#         result = re.search(exp, path)
+#         if result:
+#             print('%s/%s' % (binds[result.group(1)], result.group(2)))
+#             return '%s/%s' % (binds[result.group(1)], result.group(2))
+#     raise ValueError('Path %s not present in a bind mount. Volume mount will fail when running this in Docker.' % path)
+
+
+# def get_current_container():
+#     """
+#     Will raise ValueError if there is no container with the same hostname as the environment this is running in
+#     Which indicates that this is not a docker container, or that /var/run/docker.sock is not bind mounted to
+#     /var/run/docker.sock on the host (i.e. this is a container which is also a docker host).
+#     :return: A dictionary containing information about the container this is running in obtained using docker api
+#     """
+#     hostname = socket.gethostname()
+#     client = docker.from_env()
+#     for container in client.containers.list():
+#         if container.attrs['Config']['Hostname'] == hostname:
+#             return container
+#     raise ValueError('Not running in Docker container')
+
+
+# def get_binds():
+#     """
+#     :return: A dictionary with paths in the container as keys and paths on the host as values
+#     """
+#     container = get_current_container()
+#     return {bind.split(':')[1]: bind.split(':')[0] for bind in container.attrs['HostConfig']['Binds']}
 
 class DockerCallTest(unittest.TestCase):
     """gather program tests
     """
 
+    # Image to launch
     DOCKER_IMAGE = "pi_beat"
+    # File containing the plan to generate
     TEST_PLAN = "test_plan.xml"
+    # Folder to which results should be written. If empty, we will generate one.
+    OUT_FOLDER = ""
 
     def setUp(self):
         """Common initialization operations
@@ -78,13 +141,25 @@ class DockerCallTest(unittest.TestCase):
 
         """
 
+        # if in_docker():
+        #     print("Testing within a docker!")
+        # else:
+        #     print("Testing not done in docker")
+
         for i, one_test in enumerate(self.test_detail):
 
             msg_test = "test {} on {}".format(i, one_test['pi_name'])
             with self.subTest(msg=msg_test):
                 self.log.debug("Launching test {}".format(i))
 
-                output_data_path = tempfile.mkdtemp()
+                output_data_path = str()
+                if (self.OUT_FOLDER):
+                    output_data_path = self.OUT_FOLDER + "/{0:0=2d}".format(i)
+                    os.makedirs(output_data_path)
+                else:
+                    # no output folder defined. We generate it
+                    output_data_path = tempfile.mkdtemp()
+
                 os.chmod(output_data_path, 0o777)
 
                 # preparing the generation command
@@ -108,6 +183,8 @@ class DockerCallTest(unittest.TestCase):
                 output_files = os.listdir(output_data_path)
                 output_files_expected = os.listdir(output_groundtruth_path)
 
+                self.log.info("files generated: \n{}".format(output_files))
+                self.log.info("files expected: \n{}".format(output_files_expected))
                 self.assertCountEqual(output_files, output_files_expected, msg="Missing generated files")
 
                 # Check the content of each file
@@ -144,6 +221,7 @@ if __name__ == '__main__':
 
     DockerCallTest.DOCKER_IMAGE = os.environ.get('DOCKER_IMAGE', DockerCallTest.DOCKER_IMAGE)
     DockerCallTest.TEST_PLAN = os.environ.get('TEST_PLAN', DockerCallTest.TEST_PLAN)
+    DockerCallTest.OUT_FOLDER = os.environ.get('OUT_FOLDER', DockerCallTest.OUT_FOLDER)
     # TODO using https://stackoverflow.com/questions/11380413/python-unittest-passing-arguments
     # but it is mentioned as not preferrable.
     unittest.main()
