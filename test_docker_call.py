@@ -68,7 +68,13 @@ class DockerCallTest(unittest.TestCase):
             one_test_detail['input_folder'] = test_folder + '/' + one_test_detail['input_folder']
             one_test_detail['output_folder'] = test_folder + '/' + one_test_detail['output_folder']
 
+            # load possible discarded extension
+            one_test_detail['exclude_ext'] = one_test.getAttribute('exclude_extension')
+            if one_test_detail['exclude_ext']:
+                self.log.warning("Defined excluded extension: {}".format(one_test_detail['exclude_ext']))
+                one_test_detail['exclude_ext'] = one_test_detail['exclude_ext'].strip('][').split(', ')
             test_detail.append(one_test_detail)
+
 
         self.log.debug("Testing plan: {}".format(test_detail))
 
@@ -125,6 +131,11 @@ class DockerCallTest(unittest.TestCase):
                 for filename in output_files:
                     self.log.debug("comparing file: {}".format(filename))
 
+                    # check if the file is excluded per extension
+                    _ , extension = os.path.splitext(filename)
+                    if extension in one_test['exclude_ext']:
+                        self.log.warning("File {} not compared due to extension exclusion".format(filename))
+                        continue
                     file_generated = output_data_path + "/" + filename
 
                     lines_generated = list()
